@@ -52,6 +52,10 @@ def reduce_noise(audio, sr):
 
     # --- Apply spectral noise reduction ---
     # TODO (EL sir): Implement the actual noise reduction call.
-    cleaned = audio  # PLACEHOLDER — replace with actual implementation
+    cleaned = nr.reduce_noise(  y = audio,
+        sr = sr,
+        y_noise = noise_clip,
+        prop_decrease = prop_decrease
+    )  # PLACEHOLDER — replace with actual implementation
 
     return cleaned
