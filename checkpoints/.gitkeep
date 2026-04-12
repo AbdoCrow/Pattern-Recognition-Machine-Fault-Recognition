@@ -1,0 +1,2 @@
+# Saved model checkpoints go here.
+# best_model.pth is loaded by infer.py for inference.

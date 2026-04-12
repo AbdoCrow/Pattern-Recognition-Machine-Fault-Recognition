@@ -1,0 +1,3 @@
+# This directory is where the examiner places test .wav files.
+# Do NOT commit test data to version control.
+# infer.py reads from this exact directory.
