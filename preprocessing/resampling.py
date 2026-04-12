@@ -35,5 +35,21 @@ def resample_audio(file_path):
     """
     # TODO (JSON): Implement audio loading and resampling.
 
-    audio, sr = librosa.load(file_path, sr=TARGET_SR, mono=True)
-    return audio, sr
+   try:
+        # librosa.load automatically handles resampling if sr != native_sr
+        #  I used kaiser_best as it's very strict mathematical filter prevents aliasing
+        audio, sr = librosa.load(
+            file_path,
+            sr=TARGET_SR,
+            mono=True,             # Ensure 1D array for CNN
+            res_type="kaiser_best" 
+        )
+        
+        # Safety check: if audio is completely empty
+        if audio.size == 0:
+            warnings.warn(f"Warning: Loaded audio from {file_path} is completely empty.")
+            
+        return audio, sr
+
+    except Exception as e:
+        raise RuntimeError(f"Failed to load or resample audio file at {file_path}. Error: {e}")

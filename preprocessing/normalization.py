@@ -34,6 +34,25 @@ def normalize_volume(audio, method="rms", target_rms=0.1):
       artifacts when writing back to WAV (if needed for debugging).
 
     """
-    # TODO (JSON): Implement volume normalization.
-   
-    return audio  # PLACEHOLDER — replace with actual implementation
+    if method == "peak":
+        peak = np.max(np.abs(audio))
+        if peak < 1e-6:  # Silence check to prevent division by zero
+            return audio
+        normalized = audio / peak
+
+    # --- RMS Normalization ---
+    # RMS will be better because it won't consider sudden pop in loudness
+    # as machine 3 is like 100 times louder machine 2
+    elif method == "rms":
+        rms = np.sqrt(np.mean(audio ** 2))
+        if rms < 1e-6:  # Silence check to prevent division by zero safety if the silience was too aggressive but it shouldn't be as we will use dp 40 like we said 
+            return audio
+        normalized = audio * (target_rms / rms)
+        
+    else:
+        raise ValueError(f"Unknown normalization method: '{method}'. Please use 'peak' or 'rms'.")
+
+    # Clip to [-1.0, 1.0] to prevent audio distortion/clipping artifacts
+    normalized = np.clip(normalized, -1.0, 1.0)
+
+    return normalized
