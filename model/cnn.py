@@ -70,6 +70,21 @@ class MachineSoundCNN(nn.Module):
     def __init__(self, num_classes=NUM_CLASSES):
         super(MachineSoundCNN, self).__init__()
 
+        self.features = nn.Sequential(
+                ConvBlock(CNN_INPUT_CHANNELS, 16),
+                ConvBlock(16, 32),
+                ConvBlock(32, 64),
+                ConvBlock(64, 128)
+            )
+        self.adaptive_pool = nn.AdaptiveAvgPool2d(ADAPTIVE_POOL_OUTPUT)
+
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(2048, num_classes)
+        )
+
+        
+
     def forward(self, x):
         # Extract features through conv blocks
         x = self.features(x)

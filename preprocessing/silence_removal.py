@@ -40,6 +40,11 @@ def remove_silence(audio, sr):
     """
     # TODO (EL sir): Implement silence removal.
     
-    trimmed_audio = audio  # PLACEHOLDER — replace with actual implementation
+    trimmed_audio, index = librosa.effects.trim(
+        audio,
+        top_db=SILENCE_TOP_DB, 
+        frame_length = 2048, 
+        hop_length = 512
+    )  # PLACEHOLDER — replace with actual implementation
 
     return trimmed_audio
