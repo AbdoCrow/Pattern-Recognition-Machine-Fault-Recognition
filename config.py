@@ -100,11 +100,6 @@ MEL_POWER = 2.0
 #   is a reasonable target that captures the machine sound while
 #   discarding silence.
 #
-# TODO (sala7): After analyzing trimmed audio lengths across the dataset,
-#   adjust this value. If most clips are 6-9 seconds after trimming,
-#   256 is good. If shorter, reduce to avoid excessive padding.
-# Owner: sala7 (padding.py)
-FIXED_TIME_FRAMES = 256
 
 # Final input shape to the CNN: (batch, channels, n_mels, time_frames)
 # channels = 1 (grayscale spectrogram)
