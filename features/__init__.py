@@ -27,17 +27,17 @@ def audio_to_tensor(audio, sr, augment=False):
     Returns
     -------
     torch.Tensor
-        Shape: (1, N_MELS, FIXED_TIME_FRAMES) = (1, 128, 256)
+        Shape: (1, N_MELS, FIXED_TIME_FRAMES) = (1, 128, 281)
         - 1 channel (grayscale spectrogram)
         - 128 mel frequency bins
-        - 256 time frames
+        - 281 time frames
 
     Pipeline
     --------
     1. extract_mel_spectrogram: audio → log-mel spectrogram (128 × T)
-    2. pad_or_trim_spectrogram: (128 × T) → (128 × 256) fixed size or 344 idk man
+    2. pad_or_trim_spectrogram: (128 × T) → (128 × 281) fixed size
     3. apply_augmentation: (optional) SpecAugment + noise injection
-    4. Add channel dimension: (128 × 256) → (1, 128, 256)
+    4. Add channel dimension: (128 × 281) → (1, 128, 281)
     """
     import torch
 
@@ -53,6 +53,7 @@ def audio_to_tensor(audio, sr, augment=False):
 
     # Step 4: Convert to tensor and add channel dimension
     # Shape: (n_mels, time_frames) → (1, n_mels, time_frames)
-    tensor = torch.FloatTensor(mel_spec).unsqueeze(0)
+    tensor = torch.FloatTensor(mel_spec).unsqueeze(0) # this is actually important as the CNN takes three dimentions not 2
+    # so here we add a new empty dimension for the channel
 
     return tensor

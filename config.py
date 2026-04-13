@@ -53,7 +53,7 @@ TARGET_SR = 16000
 # Frames quieter than this (relative to peak) are considered silence.
 # 20 dB is a safe starting point for factory recordings.
 # Owner: EL sir (silence_removal.py)
-SILENCE_TOP_DB = 20
+SILENCE_TOP_DB = 40
 
 # Noise reduction — duration (in seconds) of the noise profile sample.
 # We estimate the noise floor from the first N seconds of each clip.

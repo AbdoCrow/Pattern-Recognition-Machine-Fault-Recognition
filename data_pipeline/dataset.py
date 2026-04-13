@@ -8,6 +8,7 @@ data_pipeline/dataset.py — PyTorch Dataset and DataLoader
 import os
 import torch
 from torch.utils.data import Dataset, DataLoader
+import warnings
 from config import BATCH_SIZE, NUM_WORKERS, RANDOM_SEED
 
 
@@ -35,62 +36,51 @@ class MachineDataset(Dataset):
         self.augment = augment
 
     def __len__(self):
-        """Return the total number of samples in the dataset."""
         return len(self.file_paths)
 
     def __getitem__(self, idx):
-        """
-        Load and process a single audio file.
-
-        This method chains the full pipeline:
-        1. EL sir's preprocessing: load → resample → normalize → denoise → trim
-        2. sala7's feature extraction: mel spectrogram → pad/trim → augment
-        3. Return tensor + label
-
-        """
         file_path = self.file_paths[idx]
         label = self.labels[idx]
 
-        # TODO (JSON): Implement the full processing pipeline.
-      
-        from preprocessing import preprocess_audio
-        from features import audio_to_tensor
+        try:
+            # Preprocessing
+            # This should handle loading, resampling, volume normalization, and silence trimming
+            from preprocessing import preprocess_audio
+            audio, sr = preprocess_audio(file_path)
 
-        audio, sr = preprocess_audio(file_path)
-        tensor = audio_to_tensor(audio, sr, augment=self.augment)
+            # Feature extraction 
+            # This should handle the mel spectrogram, padding to fixed length, and augmentation
+            from features import audio_to_tensor
+            tensor = audio_to_tensor(audio, sr, augment=self.augment)
 
-        return tensor, label
+            # Ensure the output is a PyTorch float32 tensor
+            if not isinstance(tensor, torch.Tensor):
+                tensor = torch.tensor(tensor, dtype=torch.float32)
+
+            return tensor, label
+
+        except Exception as e:
+            # Error Handling: If a file is corrupted, warn the user and load the next file
+            warnings.warn(f"Error loading {file_path}: {e}. Skipping to next file.")
+            
+            # Recursively try the next index (wrap around if at the end of the dataset)
+            next_idx = (idx + 1) % len(self)
+            return self.__getitem__(next_idx)
 
 
 class InferenceDataset(Dataset):
     """
     PyTorch Dataset for inference (test time).
-
-    Similar to MachineDataset but:
-    - NO labels (we don't know them — that's what we're predicting)
-    - NO augmentation (never augment during inference)
-    - Files are loaded in INTEGER ORDER (1.wav, 2.wav, ..., not string order)
-
-    CRITICAL: Files MUST be processed in integer order (1, 2, 3, ... 100),
-    NOT string order (1, 10, 100, 2, 20...). Your results.txt must match
-    input file order exactly or the grader maps every prediction to the
-    wrong file.
-    -------
-    >>> test_ds = InferenceDataset("data/")
-    >>> tensor = test_ds[0]  # First file (1.wav)
-    >>> print(f"Shape: {tensor.shape}")
+    Strictly orders files numerically and disables all augmentation.
     """
-
     def __init__(self, data_dir):
         self.data_dir = data_dir
 
-        # --- CRITICAL: Sort files in INTEGER order, not string order ---
-        # String sort: 1.wav, 10.wav, 100.wav, 2.wav, 20.wav  ← WRONG
-        # Integer sort: 1.wav, 2.wav, 3.wav, ..., 10.wav, ..., 100.wav  ← CORRECT
+        # Sort files in INTEGER order so the final submission matches perfectly
         all_files = [f for f in os.listdir(data_dir) if f.endswith(".wav")]
         self.file_paths = sorted(
             all_files,
-            key=lambda f: int(os.path.splitext(f)[0])  # Sort by integer filename
+            key=lambda f: int(os.path.splitext(f)[0])  
         )
         self.file_paths = [os.path.join(data_dir, f) for f in self.file_paths]
 
@@ -103,29 +93,76 @@ class InferenceDataset(Dataset):
         return len(self.file_paths)
 
     def __getitem__(self, idx):
-        """
-        Load and process a single test audio file (no label, no augmentation).
-        """
         file_path = self.file_paths[idx]
 
-        # Full pipeline: preprocess → feature extract (no augmentation)
-        from preprocessing import preprocess_audio
-        from features import audio_to_tensor
+        try:
+            from preprocessing import preprocess_audio
+            from features import audio_to_tensor
 
-        audio, sr = preprocess_audio(file_path)
-        tensor = audio_to_tensor(audio, sr, augment=False)  # NEVER augment test data
+            audio, sr = preprocess_audio(file_path)
+            tensor = audio_to_tensor(audio, sr, augment=False) # NEVER augment inference data
 
-        return tensor
+            if not isinstance(tensor, torch.Tensor):
+                tensor = torch.tensor(tensor, dtype=torch.float32)
+
+            return tensor
+
+        except Exception as e:
+            raise RuntimeError(f"FATAL ERROR: Failed to process inference file {file_path}. Error: {e}")
 
 
 def create_data_loaders(splits):
     """
     Create PyTorch DataLoaders for train, val, and test splits.
-
-    This is the function Osama imports to get ready-to-use data loaders.
-
     """
-    # TODO (JSON): Create DataLoaders for each split.
+    train_ds = MachineDataset(
+        splits["train"]["files"],
+        splits["train"]["labels"],
+        augment=True,          # Augmentation ON for training
+    )
+    val_ds = MachineDataset(
+        splits["val"]["files"],
+        splits["val"]["labels"],
+        augment=False,         # Augmentation OFF for validation
+    )
+    test_ds = MachineDataset(
+        splits["test"]["files"],
+        splits["test"]["labels"],
+        augment=False,         # Augmentation OFF for testing
+    )
+
+    # Set random seed for reproducibility across multiple CPU workers
+    generator = torch.Generator()
+    generator.manual_seed(RANDOM_SEED)
+
+    train_loader = DataLoader(
+        train_ds,
+        batch_size=BATCH_SIZE,
+        shuffle=True,               # Shuffle training data to prevent cyclical learning
+        num_workers=NUM_WORKERS,
+        pin_memory=True,            # Faster CPU to GPU data transfer
+        generator=generator,
+        drop_last=True,             # Critical for Osama's BatchNorm layers if the batch number wasn't divided by the data fed
+    )
     
-    print("WARNING: create_data_loaders() not yet implemented")
-    return {"train": None, "val": None, "test": None}
+    val_loader = DataLoader(
+        val_ds,
+        batch_size=BATCH_SIZE,
+        shuffle=False,              # Never shuffle validation
+        num_workers=NUM_WORKERS,
+        pin_memory=True,
+    )
+    
+    test_loader = DataLoader(
+        test_ds,
+        batch_size=BATCH_SIZE,
+        shuffle=False,              # Never shuffle test
+        num_workers=NUM_WORKERS,
+        pin_memory=True,
+    )
+
+    return {
+        "train": train_loader,
+        "val": val_loader,
+        "test": test_loader,
+    }

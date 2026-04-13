@@ -45,6 +45,8 @@ def remove_silence(audio, sr):
         top_db=SILENCE_TOP_DB, 
         frame_length = 2048, 
         hop_length = 512
-    )  # PLACEHOLDER — replace with actual implementation
+    )  
+    if len(trimmed_audio) < 1024:   
+        return audio                
 
     return trimmed_audio

@@ -58,4 +58,5 @@ def reduce_noise(audio, sr):
         prop_decrease = prop_decrease
     )  # PLACEHOLDER — replace with actual implementation
 
-    return cleaned
+    return np.clip(cleaned, -1.0, 1.0) # the reason I used clip is that the noise reduction can produce some artifacts 
+# that are louder than the original audio so it can be consistant with the norml]alization I made
