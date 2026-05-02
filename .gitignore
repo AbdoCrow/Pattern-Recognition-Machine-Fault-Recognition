@@ -1,3 +1,11 @@
 # Ignore dataset and generated data files
 /data/
 /venv/
+/train_data/
+processed_features/
+*.npy
+
+# Python cache files (fixed syntax)
+__pycache__/
+*.py[cod]
+*$py.class

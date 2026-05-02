@@ -62,14 +62,14 @@ def main():
     # =========================================================================
     # Step 4: Train the model (Osama)
     # =========================================================================
-    print("[Step 4/5] Training model...")
-    from training import Trainer
-    trainer = Trainer(model, loaders["train"], loaders["val"])
-    history = trainer.train()
+    # print("[Step 4/5] Training model...")
+    # from training import Trainer
+    # trainer = Trainer(model, loaders["train"], loaders["val"])
+    # history = trainer.train()
 
-    # Save training curves
-    # trainer.plot_training_curves(save_path="checkpoints/training_curves.png")
-    print()
+    # # Save training curves
+    # # trainer.plot_training_curves(save_path="checkpoints/training_curves.png")
+    # print()
 
     # =========================================================================
     # Step 5: Final evaluation on TEST set (ONCE only!)
@@ -77,18 +77,35 @@ def main():
     print("[Step 5/5] Final evaluation on test set...")
     from training import evaluate_model, generate_confusion_matrix
 
-    # Step 1: Load the optimized model weights from the saved checkpoint into the CNN architecture.
-    # Ensure 'map_location' is set to the current device to handle CPU/GPU compatibility.
-    # Step 2: Pass the sealed test set through the model for a single-pass evaluation.
-    # This must be the first and only time the model sees this data to ensure an unbiased final metric.
-    # Step 3: Print the global test accuracy percentage as the primary performance benchmark.
-    # Step 4: Break down accuracy by class (0-5) to identify specific machine types where the model succeeds or fails.
-    # Step 5: Construct and save the Confusion Matrix plot to 'checkpoints/confusion_matrix.png'.
-    # This serves as the visual proof of inter-class confusion for the final report.
+    # 1. Load the absolute best weights from the early stopping checkpoint
+    model.load_state_dict(torch.load("checkpoints/best_model.pth", map_location=DEVICE, weights_only=True))
+    model = model.to(DEVICE)
+    model.eval() # Freeze the model for testing
+
+    # 2. Run the actual evaluation
+    print("Evaluating on the sealed Test Set. Please wait...")
+    
+    # Catching Osama's dictionary output correctly:
+    results = evaluate_model(model, loaders["test"], DEVICE)
+    
+    test_acc = results["accuracy"]
+    all_preds = results["all_preds"]
+    all_labels = results["all_labels"]
+    per_class_acc = results["per_class_acc"]
+
+    print("\n" + "="*50)
+    print(f"🔥 FINAL GLOBAL TEST ACCURACY: {test_acc:.2f}% 🔥")
+    print("="*50)
+    
+    print("Per-Class Accuracy Breakdown:")
+    for class_name, acc in per_class_acc.items():
+        print(f"  - {class_name}: {acc:.2f}%")
+    print("="*50 + "\n")
+
+    # 3. Generate the actual image
+    generate_confusion_matrix(all_labels, all_preds, save_path="checkpoints/confusion_matrix.png")
 
     print("\nTraining pipeline complete.")
-    print("Best model saved to: checkpoints/best_model.pth")
-
 
 if __name__ == "__main__":
     main()

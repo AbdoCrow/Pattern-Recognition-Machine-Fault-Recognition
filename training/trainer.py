@@ -2,6 +2,8 @@
 ===============================================================================
 training/trainer.py — Training Loop with Optimizer, Scheduler, Early Stopping
 ===============================================================================
+
+OWNER: Osama
 """
 
 import os
@@ -11,6 +13,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR
 import numpy as np
+from tqdm import tqdm
 from config import (
     LEARNING_RATE,
     WEIGHT_DECAY,
@@ -22,119 +25,136 @@ from config import (
     DEVICE,
 )
 
-
 class Trainer:
     """
     Handles the complete training pipeline for the CNN.
     """
-
     def __init__(self, model, train_loader, val_loader, device=None):
         self.model = model
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.device = device or DEVICE
 
-        # Move model to device (GPU if available)
         self.model = self.model.to(self.device)
-
-        # --- Loss Function ---
-        # CrossEntropyLoss for 6-class classification.
-        # It applies LogSoftmax internally, so the model outputs raw logits.
         self.criterion = nn.CrossEntropyLoss()
-
-        # --- Optimizer ---
-        # AdamW: Adam with corrected weight decay.
-        # lr: initial learning rate (will be annealed)
-        # weight_decay: L2 regularization strength
+        
         self.optimizer = optim.AdamW(
             self.model.parameters(),
             lr=LEARNING_RATE,
             weight_decay=WEIGHT_DECAY,
         )
 
-        # --- LR Scheduler ---
-        # Cosine annealing: smoothly reduces LR from initial to near-zero
-        # over T_max epochs, then optionally restarts.
         self.scheduler = CosineAnnealingLR(
             self.optimizer,
             T_max=LR_SCHEDULER_T_MAX,
         )
 
-        # --- Training History ---
         self.history = {
-            "train_loss": [],
-            "val_loss": [],
-            "train_acc": [],
-            "val_acc": [],
-            "lr": [],
+            "train_loss": [], "val_loss": [],
+            "train_acc": [], "val_acc": [], "lr": []
         }
 
-        # --- Early Stopping State ---
         self.best_val_loss = float("inf")
         self.patience_counter = 0
 
-        # Ensure checkpoint directory exists
         os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
     def train(self, max_epochs=None):
-        """
-        Run the full training loop.
-
-        For each epoch:
-        1. Train on all batches (model.train() mode)
-        2. Evaluate on validation set (model.eval() mode)
-        3. Update LR scheduler
-        4. Check early stopping
-        5. Save best model checkpoint
-
-        """
         if max_epochs is None:
             max_epochs = MAX_EPOCHS
 
         print(f"Training on {self.device}")
-        print(f"Max epochs: {max_epochs}")
-        print(f"Early stopping patience: {EARLY_STOPPING_PATIENCE}")
-        print(f"Learning rate: {LEARNING_RATE}")
-        print(f"Weight decay: {WEIGHT_DECAY}")
+        print(f"Max epochs: {max_epochs} | Patience: {EARLY_STOPPING_PATIENCE}")
         print("=" * 60)
 
-        # TODO (Osama): Implement the training loop.
+        for epoch in range(1, max_epochs + 1):
+            # --- 1. TRAINING PHASE ---
+            self.model.train() # Turn ON Dropout and BatchNorm updates
+            running_loss = 0.0
+            correct = 0
+            total = 0
 
-        print("WARNING: Training loop not yet implemented")
+            # Progress bar for training
+            pbar = tqdm(self.train_loader, desc=f"Epoch {epoch}/{max_epochs} [Train]")
+            
+            for inputs, labels in pbar:
+                inputs, labels = inputs.to(self.device), labels.to(self.device)
+
+                # Zero the gradients
+                self.optimizer.zero_grad()
+
+                # Forward pass
+                outputs = self.model(inputs)
+                loss = self.criterion(outputs, labels)
+
+                # Backward pass & Optimize
+                loss.backward()
+                self.optimizer.step()
+
+                # Metrics calculation
+                running_loss += loss.item() * inputs.size(0)
+                _, predicted = outputs.max(1)
+                total += labels.size(0)
+                correct += predicted.eq(labels).sum().item()
+
+                # Update progress bar
+                pbar.set_postfix({"loss": f"{loss.item():.4f}", "acc": f"{100.*correct/total:.2f}%"})
+
+            epoch_train_loss = running_loss / len(self.train_loader.dataset)
+            epoch_train_acc = 100. * correct / total
+
+            # --- 2. VALIDATION PHASE ---
+            epoch_val_loss, epoch_val_acc = self._validate()
+
+            # --- 3. SCHEDULER STEP ---
+            current_lr = self.optimizer.param_groups[0]['lr']
+            self.scheduler.step()
+
+            # --- 4. RECORD HISTORY ---
+            self.history["train_loss"].append(epoch_train_loss)
+            self.history["val_loss"].append(epoch_val_loss)
+            self.history["train_acc"].append(epoch_train_acc)
+            self.history["val_acc"].append(epoch_val_acc)
+            self.history["lr"].append(current_lr)
+
+            print(f"   --> Val Loss: {epoch_val_loss:.4f} | Val Acc: {epoch_val_acc:.2f}% | LR: {current_lr:.6f}")
+
+            # --- 5. EARLY STOPPING & CHECKPOINTING ---
+            if epoch_val_loss < self.best_val_loss:
+                self.best_val_loss = epoch_val_loss
+                self.patience_counter = 0
+                self._save_checkpoint(epoch, epoch_val_loss, epoch_val_acc)
+                print(f"   [!] New best model saved! (Loss: {epoch_val_loss:.4f})")
+            else:
+                self.patience_counter += 1
+                if self.patience_counter >= EARLY_STOPPING_PATIENCE:
+                    print(f"\n[!] Early stopping triggered at epoch {epoch}. No improvement for {EARLY_STOPPING_PATIENCE} epochs.")
+                    break
+
         return self.history
 
     def _validate(self):
-        """
-        Evaluate the model on the validation set.
+        self.model.eval() # Turn OFF Dropout, freeze BatchNorm
+        running_loss = 0.0
+        correct = 0
+        total = 0
 
-        CRITICAL: model.eval() disables dropout and batch norm uses
-        running statistics instead of batch statistics. torch.no_grad()
-        disables gradient computation (saves memory and time).
-        Augmentation is also disabled because val_ds has augment=False.
-        """
-        # TODO (Osama): Implement validation.
+        with torch.no_grad(): # Disable gradient tracking to save memory
+            for inputs, labels in self.val_loader:
+                inputs, labels = inputs.to(self.device), labels.to(self.device)
 
-        return 0.0, 0.0  # PLACEHOLDER
+                outputs = self.model(inputs)
+                loss = self.criterion(outputs, labels)
+
+                running_loss += loss.item() * inputs.size(0)
+                _, predicted = outputs.max(1)
+                total += labels.size(0)
+                correct += predicted.eq(labels).sum().item()
+
+        val_loss = running_loss / len(self.val_loader.dataset)
+        val_acc = 100. * correct / total
+        return val_loss, val_acc
 
     def _save_checkpoint(self, epoch, val_loss, val_acc):
-        """
-        Save model checkpoint (weights + optimizer state + metadata).
-
-        Saves two files:
-        1. best_model.pth — just the model weights (for inference)
-        2. checkpoint_epoch_N.pth — full state (for resuming training)
-        """
-        # TODO (Osama): Implement checkpoint saving.
-    
-        pass
-
-    def plot_training_curves(self, save_path=None):
-        """
-        Plot training and validation loss/accuracy curves.
-
-        Useful for the final report — shows if the model is overfitting
-        (training acc goes up but val acc plateaus or drops).
-        """
-        # TODO (Osama): Implement plotting with matplotlib.
-       
-        pass
+        # Save only the weights to BEST_MODEL_PATH for infer.py to use later
+        torch.save(self.model.state_dict(), BEST_MODEL_PATH)

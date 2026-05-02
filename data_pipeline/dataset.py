@@ -15,16 +15,7 @@ from config import BATCH_SIZE, NUM_WORKERS, RANDOM_SEED
 class MachineDataset(Dataset):
     """
     PyTorch Dataset for machine sound classification.
-
-    Loads audio files, applies preprocessing (denoise + trim + normalize),
-    extracts mel spectrograms, and returns fixed-size tensors with labels.
-
-    Example
-    -------
-    >>> train_ds = MachineDataset(train_files, train_labels, augment=True)
-    >>> val_ds = MachineDataset(val_files, val_labels, augment=False)
-    >>> tensor, label = train_ds[0]
-    >>> print(f"Shape: {tensor.shape}, Label: {label}")
+    Now optimized to instantly load preprocessed .npy files!
     """
 
     def __init__(self, file_paths, labels, augment=False):
@@ -39,31 +30,38 @@ class MachineDataset(Dataset):
         return len(self.file_paths)
 
     def __getitem__(self, idx):
-        file_path = self.file_paths[idx]
+        raw_path = self.file_paths[idx]
         label = self.labels[idx]
 
+        # ---------------------------------------------------------
+        # THE REROUTE: Change the path from the old .wav to the new .npy
+        # ---------------------------------------------------------
+        # This replaces "train_data" with "processed_features" and ".wav" with ".npy"
+        file_path = raw_path.replace("train_data", "processed_features").replace(".wav", ".npy")
+
         try:
-            # Preprocessing
-            # This should handle loading, resampling, volume normalization, and silence trimming
-            from preprocessing import preprocess_audio
-            audio, sr = preprocess_audio(file_path)
+            import numpy as np
+            
+            # 1. INSTANT LOAD: Read the pre-calculated matrix
+            data = np.load(file_path)
 
-            # Feature extraction 
-            # This should handle the mel spectrogram, padding to fixed length, and augmentation
-            from features import audio_to_tensor
-            tensor = audio_to_tensor(audio, sr, augment=self.augment)
+            # 2. CONVERT TO TENSOR
+            tensor = torch.from_numpy(data).float()
 
-            # Ensure the output is a PyTorch float32 tensor
-            if not isinstance(tensor, torch.Tensor):
-                tensor = torch.tensor(tensor, dtype=torch.float32)
+            # Ensure it has the channel dimension (1, n_mels, time)
+            if tensor.dim() == 2:
+                tensor = tensor.unsqueeze(0)
+
+            # 3. APPLY AUGMENTATION (SpecAugment only)
+            if self.augment:
+                # Add lightweight SpecAugment here later if you want
+                pass 
 
             return tensor, label
 
         except Exception as e:
-            # Error Handling: If a file is corrupted, warn the user and load the next file
+            # Error Handling: If a file is corrupted or missing, skip to the next
             warnings.warn(f"Error loading {file_path}: {e}. Skipping to next file.")
-            
-            # Recursively try the next index (wrap around if at the end of the dataset)
             next_idx = (idx + 1) % len(self)
             return self.__getitem__(next_idx)
 
@@ -72,6 +70,7 @@ class InferenceDataset(Dataset):
     """
     PyTorch Dataset for inference (test time).
     Strictly orders files numerically and disables all augmentation.
+    PROCESSES LIVE .wav FILES (Because the examiner will provide raw audio!)
     """
     def __init__(self, data_dir):
         self.data_dir = data_dir
@@ -96,6 +95,7 @@ class InferenceDataset(Dataset):
         file_path = self.file_paths[idx]
 
         try:
+            # MUST use the live processing here!
             from preprocessing import preprocess_audio
             from features import audio_to_tensor
 
@@ -105,12 +105,12 @@ class InferenceDataset(Dataset):
             if not isinstance(tensor, torch.Tensor):
                 tensor = torch.tensor(tensor, dtype=torch.float32)
 
+            # Return ONLY the tensor (no label exists for inference)
             return tensor
 
         except Exception as e:
             raise RuntimeError(f"FATAL ERROR: Failed to process inference file {file_path}. Error: {e}")
-
-
+            
 def create_data_loaders(splits):
     """
     Create PyTorch DataLoaders for train, val, and test splits.
@@ -143,6 +143,7 @@ def create_data_loaders(splits):
         pin_memory=True,            # Faster CPU to GPU data transfer
         generator=generator,
         drop_last=True,             # Critical for Osama's BatchNorm layers if the batch number wasn't divided by the data fed
+        persistent_workers=True,    # Keep workers alive between epochs
     )
     
     val_loader = DataLoader(

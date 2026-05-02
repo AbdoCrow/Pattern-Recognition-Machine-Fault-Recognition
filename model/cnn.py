@@ -2,6 +2,8 @@
 ===============================================================================
 model/cnn.py — CNN Architecture for Machine Sound Classification
 ===============================================================================
+
+OWNER: EL sir
 """
 
 import torch
@@ -16,19 +18,10 @@ from config import (
     ADAPTIVE_POOL_OUTPUT,
 )
 
-
 class ConvBlock(nn.Module):
     """
     A single convolutional block: Conv2d → BatchNorm → ReLU → MaxPool2d.
-
-    This is the building block of the CNN. Each block:
-    1. Applies a 3×3 convolution to extract local patterns
-    2. Normalizes the output (BatchNorm) for stable training
-    3. Applies ReLU activation (introduces non-linearity)
-    4. Downsamples by 2× with max pooling (keeps strongest activations)
-
     """
-
     def __init__(self, in_channels, out_channels):
         super(ConvBlock, self).__init__()
         self.conv = nn.Conv2d(
@@ -51,61 +44,57 @@ class ConvBlock(nn.Module):
 
 class MachineSoundCNN(nn.Module):
     """
-    CNN for 6-class machine sound classification from mel spectrograms.
-
-    Input shape:  (batch, 1, 128, 256)  — 1-channel mel spectrogram
-    Output shape: (batch, 6)            — raw logits for 6 classes
-
-    Do NOT apply softmax to the output during training — CrossEntropyLoss
-    handles it internally. Apply softmax only during inference.
-
-    Example
-    -------
-    >>> model = MachineSoundCNN()
-    >>> dummy_input = torch.randn(8, 1, 128, 256)  # batch of 8
-    >>> output = model(dummy_input)
-    >>> print(output.shape)  # torch.Size([8, 6])
+    Custom CNN for 6-class machine sound classification from mel spectrograms.
     """
-
     def __init__(self, num_classes=NUM_CLASSES):
         super(MachineSoundCNN, self).__init__()
 
-        self.features = nn.Sequential(
-                ConvBlock(CNN_INPUT_CHANNELS, 16),
-                ConvBlock(16, 32),
-                ConvBlock(32, 64),
-                ConvBlock(64, 128)
-            )
+        # ---------------------------------------------------------------------
+        # 1. Feature Extractor (Dynamic Conv Blocks)
+        # ---------------------------------------------------------------------
+        layers = []
+        in_channels = CNN_INPUT_CHANNELS
+        
+        # Dynamically build blocks based on config.py (e.g., 32 -> 64 -> 128 -> 256)
+        for out_channels in CNN_FILTERS:
+            layers.append(ConvBlock(in_channels, out_channels))
+            in_channels = out_channels  # The output of this layer is the input to the next
+            
+        self.features = nn.Sequential(*layers)
+        
+        # ---------------------------------------------------------------------
+        # 2. Adaptive Pooling
+        # ---------------------------------------------------------------------
+        # This squashes whatever time dimension is left into a fixed (4, 4) grid
         self.adaptive_pool = nn.AdaptiveAvgPool2d(ADAPTIVE_POOL_OUTPUT)
+
+        # ---------------------------------------------------------------------
+        # 3. Classifier Head (Fully Connected)
+        # ---------------------------------------------------------------------
+        # Calculate flattened size: Last filter size (256) * height (4) * width (4) = 4096
+        flattened_size = CNN_FILTERS[-1] * ADAPTIVE_POOL_OUTPUT[0] * ADAPTIVE_POOL_OUTPUT[1]
 
         self.classifier = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(2048, num_classes)
+            nn.Dropout(p=0.5),                   # Regularization: Prevent overfitting
+            nn.Linear(flattened_size, 512),      # Hidden layer to compress features
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5),                   # Regularization
+            nn.Linear(512, num_classes)          # Output raw logits (6 classes)
         )
 
-        
-
     def forward(self, x):
-        # Extract features through conv blocks
+        # Extract visual features from the spectrogram
         x = self.features(x)
-
-        # Adaptive pool to fixed size
+        # Pool them to a fixed mathematical size
         x = self.adaptive_pool(x)
-
-        # Classify
+        # Make the final classification
         x = self.classifier(x)
-
         return x
 
 
 # =============================================================================
 # SHAPE SANITY CHECK
-# =============================================================================
-# Run this file directly to verify shapes flow correctly:
-#   python -m model.cnn
-#
-# This should print the shape at each stage and confirm the final output
-# is (batch, 6).
 # =============================================================================
 if __name__ == "__main__":
     print("=" * 60)
@@ -114,15 +103,15 @@ if __name__ == "__main__":
 
     model = MachineSoundCNN()
 
-    # Create a dummy batch (batch_size=4, channels=1, n_mels=128, time=256)
-    dummy_input = torch.randn(4, 1, 128, 256)
+    # Create a dummy batch based on JSON's exact tensor output (batch=4, ch=1, mels=128, time=281)
+    dummy_input = torch.randn(4, 1, 128, 281)
     print(f"\nInput shape:  {dummy_input.shape}")
 
-    # Trace through each block
+    # Trace through the architecture
     x = dummy_input
     for i, block in enumerate(model.features):
         x = block(x)
-        print(f"After Conv Block {i+1}: {x.shape}")
+        print(f"After Conv Block {i+1} ({CNN_FILTERS[i]} filters): {x.shape}")
 
     x = model.adaptive_pool(x)
     print(f"After AdaptivePool:  {x.shape}")
@@ -136,5 +125,4 @@ if __name__ == "__main__":
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"\nTotal parameters:     {total_params:,}")
-    print(f"Trainable parameters: {trainable_params:,}")
     print("=" * 60)
