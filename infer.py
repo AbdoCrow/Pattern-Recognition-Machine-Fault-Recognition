@@ -58,7 +58,7 @@ def main():
     # Step 3: Run inference on each file
     # =========================================================================
     predictions = []
-    total_time = 0.0
+    iteration_times = []
 
     with torch.no_grad():  # No gradients needed during inference
         for i in range(len(dataset)):
@@ -78,9 +78,9 @@ def main():
             predicted_class = output.argmax(dim=1).item()
             predictions.append(predicted_class)
 
-            # --- Record time ---
+            # --- Record time for this iteration ---
             elapsed = time.time() - start_time
-            total_time += elapsed
+            iteration_times.append(elapsed)
 
     # =========================================================================
     # Step 4: Write results.txt
@@ -93,10 +93,10 @@ def main():
     # =========================================================================
     # Step 5: Write time.txt
     # =========================================================================
-    # Format: Average time per file, rounded to 3 decimal places
-    avg_time_per_file = total_time / len(dataset) if len(dataset) > 0 else 0.0
+    # Format: One time per line per iteration, rounded to 3 decimal places
     with open(TIME_FILE, "w") as f:
-        f.write(f"{avg_time_per_file:.3f}\n")
+        for elapsed in iteration_times:
+            f.write(f"{elapsed:.3f}\n")
 
 
 if __name__ == "__main__":
