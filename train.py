@@ -94,10 +94,10 @@ def main():
     per_class_acc = results["per_class_acc"]
 
     print("\n" + "="*50)
-    print(f"🔥 FINAL GLOBAL TEST ACCURACY: {test_acc:.2f}% 🔥")
-    print(f"⚖️  BALANCED ACCURACY:      {results['balanced_accuracy']:.2f}%")
-    print(f"🎯 MACRO-F1 SCORE:         {results['macro_f1']:.4f}")
-    print(f"🚨 AGGREGATE FAULT RECALL:  {results['aggregate_fault_recall']:.2f}%")
+    print(f"FINAL GLOBAL TEST ACCURACY: {test_acc:.2f}%")
+    print(f"BALANCED ACCURACY:      {results['balanced_accuracy']:.2f}%")
+    print(f"MACRO-F1 SCORE:         {results['macro_f1']:.4f}")
+    print(f"AGGREGATE FAULT RECALL:  {results['aggregate_fault_recall']:.2f}%")
     print("="*50)
     
     print("Per-Class Detailed Breakdown:")
