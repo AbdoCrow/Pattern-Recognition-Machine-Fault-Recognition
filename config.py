@@ -36,8 +36,8 @@ PROCESSED_DATA_DIR = os.path.join(PROJECT_ROOT, "processed_features")
 CHECKPOINT_DIR = os.path.join(PROJECT_ROOT, "checkpoints")
 
 # Output files required by the submission
-RESULTS_FILE = os.path.join(PROJECT_ROOT, "results.txt")
-TIME_FILE = os.path.join(PROJECT_ROOT, "time.txt")
+RESULTS_FILE = os.path.join(DATA_DIR, "results.txt")
+TIME_FILE = os.path.join(DATA_DIR, "time.txt")
 
 # Directory for split metadata (train/val/test file lists)
 SPLITS_DIR = os.path.join(PROJECT_ROOT, "splits")
