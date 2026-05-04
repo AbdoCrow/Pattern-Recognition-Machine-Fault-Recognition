@@ -21,8 +21,15 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Install dependencies — no cache to keep image small
-RUN pip install --no-cache-dir -r requirements.txt
+RUN apt-get update && apt-get install -y \
+    libsndfile1 \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 
+# Copy requirements first to leverage Docker caching
+COPY requirements.txt .
+# Install Python dependencies 
+RUN pip install --no-cache-dir -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
 # Copy the entire project into the container
 COPY . .
 
