@@ -157,6 +157,31 @@ def main():
                 print('       * top_db={}: raw {:.3f}s -> trimmed {:.3f}s (silence removed {:.3f}s)'.format(
                     r['_top_db'], r['raw_duration_s'], r['trimmed_duration_s'], r['silence_removed_s']))
 
+        # ===== Compute averages per top_db =====
+        from collections import defaultdict
 
+        avg_stats = defaultdict(lambda: {
+            'raw': [],
+            'trimmed': [],
+            'silence': []
+        })
+
+        for mr_list in results:
+            for r in mr_list:
+                td = r['_top_db']
+                avg_stats[td]['raw'].append(r['raw_duration_s'])
+                avg_stats[td]['trimmed'].append(r['trimmed_duration_s'])
+                avg_stats[td]['silence'].append(r['silence_removed_s'])
+
+        print("\nAverages per top_db:")
+        for td, vals in sorted(avg_stats.items()):
+            raw_avg = sum(vals['raw']) / len(vals['raw'])
+            trimmed_avg = sum(vals['trimmed']) / len(vals['trimmed'])
+            silence_avg = sum(vals['silence']) / len(vals['silence'])
+
+            print(f"   🔹 top_db={td}:")
+            print(f"      avg raw duration     = {raw_avg:.3f}s")
+            print(f"      avg trimmed duration = {trimmed_avg:.3f}s")
+            print(f"      avg silence removed  = {silence_avg:.3f}s")
 if __name__ == '__main__':
     main()

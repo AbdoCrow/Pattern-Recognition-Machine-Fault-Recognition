@@ -36,7 +36,13 @@ class Trainer:
         self.device = device or DEVICE
 
         self.model = self.model.to(self.device)
-        self.criterion = nn.CrossEntropyLoss()
+        # --- Handle Class Imbalance with weighted loss ---
+        # Based on training split distribution: 
+        # Normal: {0: 11340, 2: 11340, 4: 10080}
+        # Abnormal: {1: 2222, 3: 2268, 5: 2114}
+        # Weights calculated as total_samples / (n_classes * class_samples)
+        class_weights = torch.tensor([0.58, 2.95, 0.58, 2.89, 0.65, 3.10]).to(self.device)
+        self.criterion = nn.CrossEntropyLoss(weight=class_weights)
         
         self.optimizer = optim.AdamW(
             self.model.parameters(),
@@ -158,3 +164,39 @@ class Trainer:
     def _save_checkpoint(self, epoch, val_loss, val_acc):
         # Save only the weights to BEST_MODEL_PATH for infer.py to use later
         torch.save(self.model.state_dict(), BEST_MODEL_PATH)
+
+    def plot_training_curves(self, save_path="checkpoints/training_curves.png"):
+        """
+        Plot training and validation loss/accuracy curves.
+        """
+        import matplotlib.pyplot as plt
+        
+        epochs = range(1, len(self.history["train_loss"]) + 1)
+        
+        plt.figure(figsize=(12, 5))
+        
+        # Plot Loss
+        plt.subplot(1, 2, 1)
+        plt.plot(epochs, self.history["train_loss"], label="Train Loss")
+        plt.plot(epochs, self.history["val_loss"], label="Val Loss")
+        plt.title("Loss Curves")
+        plt.xlabel("Epoch")
+        plt.ylabel("Loss")
+        plt.legend()
+        plt.grid(True)
+        
+        # Plot Accuracy
+        plt.subplot(1, 2, 2)
+        plt.plot(epochs, self.history["train_acc"], label="Train Acc")
+        plt.plot(epochs, self.history["val_acc"], label="Val Acc")
+        plt.title("Accuracy Curves")
+        plt.xlabel("Epoch")
+        plt.ylabel("Accuracy (%)")
+        plt.legend()
+        plt.grid(True)
+        
+        plt.tight_layout()
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        plt.savefig(save_path)
+        print(f"\n[!] Training curves saved to: {save_path}")
+        plt.close()

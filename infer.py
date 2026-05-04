@@ -25,8 +25,6 @@ from config import (
 )
 from model import MachineSoundCNN
 from data_pipeline.dataset import InferenceDataset
-from preprocessing import preprocess_audio
-from features import audio_to_tensor
 
 
 def main():
@@ -47,15 +45,12 @@ def main():
     model.eval()  # CRITICAL: Disable dropout and use running BN statistics
 
     # =========================================================================
-    # Step 2: Get test files in INTEGER order
+    # Step 2: Initialize Inference Dataset
     # =========================================================================
-    # CRITICAL: Sort by integer filename, NOT string order!
-    # String sort: 1.wav, 10.wav, 100.wav, 2.wav  ← WRONG
-    # Integer sort: 1.wav, 2.wav, 3.wav, ..., 100.wav  ← CORRECT
-    test_files = [f for f in os.listdir(DATA_DIR) if f.endswith(".wav")]
-    test_files = sorted(test_files, key=lambda f: int(os.path.splitext(f)[0]))
-
-    if len(test_files) == 0:
+    # InferenceDataset handles integer sorting and live preprocessing
+    dataset = InferenceDataset(DATA_DIR)
+    
+    if len(dataset) == 0:
         print(f"ERROR: No .wav files found in {DATA_DIR}")
         sys.exit(1)
 
@@ -66,19 +61,14 @@ def main():
     total_time = 0.0
 
     with torch.no_grad():  # No gradients needed during inference
-        for filename in test_files:
-            file_path = os.path.join(DATA_DIR, filename)
-
+        for i in range(len(dataset)):
             # --- Time this iteration ---
             start_time = time.time()
 
-            # Preprocessing (EL sir's pipeline)
-            audio, sr = preprocess_audio(file_path)
+            # dataset[i] performs preprocessing and feature extraction
+            tensor = dataset[i]
 
-            # Feature extraction (sala7's pipeline, NO augmentation)
-            tensor = audio_to_tensor(audio, sr, augment=False)
-
-            # Add batch dimension: (1, 128, 256) → (1, 1, 128, 256)
+            # Add batch dimension: (1, 128, 281) → (1, 1, 128, 281)
             tensor = tensor.unsqueeze(0).to(DEVICE)
 
             # Forward pass through CNN
@@ -104,7 +94,7 @@ def main():
     # Step 5: Write time.txt
     # =========================================================================
     # Format: Average time per file, rounded to 3 decimal places
-    avg_time_per_file = total_time / len(test_files) if test_files else 0.0
+    avg_time_per_file = total_time / len(dataset) if len(dataset) > 0 else 0.0
     with open(TIME_FILE, "w") as f:
         f.write(f"{avg_time_per_file:.3f}\n")
 

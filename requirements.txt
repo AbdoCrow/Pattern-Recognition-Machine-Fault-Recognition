@@ -2,6 +2,8 @@
 # requirements.txt
 # =============================================================================
 
+gradio==6.14.0
+
 # Core deep learning
 torch==2.9.1
 torchaudio==2.9.1

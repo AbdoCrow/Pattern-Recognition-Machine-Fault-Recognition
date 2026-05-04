@@ -8,11 +8,6 @@ features/augmentation.py — Data Augmentation for Training
 import numpy as np
 from config import FREQ_MASK_PARAM, TIME_MASK_PARAM, NOISE_STD, AUGMENT_PROB
 
-AUGMENT_PROB = 0.5         # 50% chance to apply each augmentation independently
-FREQ_MASK_PARAM = 24       # Max number of consecutive frequency bins to mask (out of 128)
-TIME_MASK_PARAM = 40       # Max number of consecutive time frames to mask 
-NOISE_STD = 0.05           # Standard deviation of the Gaussian noise
-
 # note regarding the noise the random noise might push data over the limit we made 
 # in the mel spectro gram to be between 0 and 1 so will need to clip
 

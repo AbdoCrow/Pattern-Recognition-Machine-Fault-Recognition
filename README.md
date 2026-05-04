@@ -87,7 +87,7 @@ project/
                     ┌─────────────────────┐            ┌──────────────────┐        ┌──────────────┐
     Raw WAV ──────► │ 1. Resample (16kHz) │            │                  │        │              │
                     │ 2. Normalize volume │ ──────────►│ Mel Spectrogram  │───────►│   CNN        │
-                    │ 3. Denoise          │            │ Pad/Trim (256)   │        │   6-class    │
+                    │ 3. Denoise          │            │ Pad/Trim (281)   │        │   6-class    │
                     │ 4. Trim silence     │            │ Augment (train)  │        │   output     │
                     └─────────────────────┘            └──────────────────┘        └──────────────┘
                         JSON + EL sir                        sala7                     EL sir
@@ -116,7 +116,7 @@ project/
 | File | Status | Description |
 |------|--------|-------------|
 | `features/mel_spectrogram.py` | Basic | Log-mel spectrogram (n_mels=128) |
-| `features/padding.py` | Basic | Pad/trim to 256 time frames |
+| `features/padding.py` | Basic | Pad/trim to 281 time frames |
 | `features/augmentation.py` | TODO | SpecAugment + Gaussian noise |
 
 ### Osama — Training + Evaluation + Submission
@@ -190,8 +190,8 @@ docker run -v /path/to/test/data:/app/data machine-classifier
 | `N_MELS` | 128 | sala7 + EL sir |
 | `N_FFT` | 1024 | sala7 |
 | `HOP_LENGTH` | 512 | sala7 |
-| `FIXED_TIME_FRAMES` | 256 | sala7 |
-| `BATCH_SIZE` | 32 | Osama |
+| `FIXED_TIME_FRAMES` | 281 | sala7 |
+| `BATCH_SIZE` | 64 | Osama |
 | `LEARNING_RATE` | 1e-3 | Osama |
 | `NUM_CLASSES` | 6 | EL sir |
 | `CNN_FILTERS` | [32, 64, 128, 256] | EL sir |

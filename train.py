@@ -62,14 +62,14 @@ def main():
     # =========================================================================
     # Step 4: Train the model (Osama)
     # =========================================================================
-    # print("[Step 4/5] Training model...")
-    # from training import Trainer
-    # trainer = Trainer(model, loaders["train"], loaders["val"])
-    # history = trainer.train()
+    print("[Step 4/5] Training model...")
+    from training import Trainer
+    trainer = Trainer(model, loaders["train"], loaders["val"])
+    history = trainer.train()
 
-    # # Save training curves
-    # # trainer.plot_training_curves(save_path="checkpoints/training_curves.png")
-    # print()
+    # Save training curves
+    trainer.plot_training_curves(save_path="checkpoints/training_curves.png")
+    print()
 
     # =========================================================================
     # Step 5: Final evaluation on TEST set (ONCE only!)
@@ -95,11 +95,19 @@ def main():
 
     print("\n" + "="*50)
     print(f"🔥 FINAL GLOBAL TEST ACCURACY: {test_acc:.2f}% 🔥")
+    print(f"⚖️  BALANCED ACCURACY:      {results['balanced_accuracy']:.2f}%")
+    print(f"🎯 MACRO-F1 SCORE:         {results['macro_f1']:.4f}")
+    print(f"🚨 AGGREGATE FAULT RECALL:  {results['aggregate_fault_recall']:.2f}%")
     print("="*50)
     
-    print("Per-Class Accuracy Breakdown:")
-    for class_name, acc in per_class_acc.items():
-        print(f"  - {class_name}: {acc:.2f}%")
+    print("Per-Class Detailed Breakdown:")
+    print(f"{'Class Name':<25} | {'Acc':<6} | {'Prec':<6} | {'Rec':<6}")
+    print("-" * 55)
+    for i, class_name in enumerate(per_class_acc.keys()):
+        acc = per_class_acc[class_name]
+        prec = results['per_class_precision'][i] * 100
+        rec = results['per_class_recall'][i] * 100
+        print(f"{class_name:<25} | {acc:>5.1f}% | {prec:>5.1f}% | {rec:>5.1f}%")
     print("="*50 + "\n")
 
     # 3. Generate the actual image

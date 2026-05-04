@@ -15,5 +15,5 @@ and sala7's feature extraction, wiring everyone's code together.
 ===============================================================================
 """
 
-from data_pipeline.dataset import MachineDataset, create_data_loaders
+from data_pipeline.dataset import MachineDataset, InferenceDataset, create_data_loaders
 from data_pipeline.splits import create_stratified_splits

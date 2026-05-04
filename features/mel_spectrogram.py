@@ -9,11 +9,7 @@ import numpy as np
 import librosa
 from config import N_MELS, N_FFT, HOP_LENGTH, FMAX, MEL_POWER
 
-N_MELS = 128
-N_FFT = 1024
-HOP_LENGTH = 512
-FMAX = 8000
-MEL_POWER = 2.0  # 2.0 = power spectrogram (standard), 1.0 = energy spectrogram
+# Toggle whether to scale the final output dB array to exactly [0.0, 1.0]
 
 # Toggle whether to scale the final output dB array to exactly [0.0, 1.0]
 # HIGHLY RECOMMENDED for CNN inputs to keep gradients stable.
@@ -21,7 +17,7 @@ MEL_POWER = 2.0  # 2.0 = power spectrogram (standard), 1.0 = energy spectrogram
 # because the log-mel spectrogram can have a wide range of values depending on the loudness of the audio, 
 # and scaling it to [0.0, 1.0] ensures that the CNN receives inputs in a consistent range
 # which will make the weights explode in different directions when The data is fed to the CNN
-# all weights will be standradized 
+# all weights will be standradized I remember this from the lab 4 when we did Z normalization
 APPLY_MIN_MAX_SCALING = True
 
 def extract_mel_spectrogram(audio, sr):

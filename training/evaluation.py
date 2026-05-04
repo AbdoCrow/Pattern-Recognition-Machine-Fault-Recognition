@@ -10,7 +10,12 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import (
+    confusion_matrix, 
+    f1_score, 
+    balanced_accuracy_score, 
+    precision_recall_fscore_support
+)
 from config import NUM_CLASSES, DEVICE
 
 # Class name mapping for readable reports
@@ -71,8 +76,38 @@ def evaluate_model(model, data_loader, device=None):
         else:
             per_class_acc[CLASS_NAMES[i]] = 0.0
 
+    # --- Calculate New Metrics requested by user ---
+    # 1. Macro-F1
+    macro_f1 = f1_score(all_labels, all_preds, average='macro')
+
+    # 2. Balanced Accuracy
+    balanced_acc = balanced_accuracy_score(all_labels, all_preds)
+
+    # 3. Per-class Precision/Recall
+    precision, recall, f1, _ = precision_recall_fscore_support(all_labels, all_preds, labels=range(NUM_CLASSES))
+
+    # 4. Normal vs Abnormal Aggregate Recall
+    # Indices 0, 2, 4 = Normal; 1, 3, 5 = Abnormal
+    abnormal_indices = [1, 3, 5]
+    all_labels_np = np.array(all_labels)
+    all_preds_np = np.array(all_preds)
+    
+    abnormal_mask = np.isin(all_labels_np, abnormal_indices)
+    if np.sum(abnormal_mask) > 0:
+        # True positives for the 'Abnormal' super-class: 
+        # Predicted ANY abnormal class when label was ANY abnormal class
+        abnormal_preds = np.isin(all_preds_np[abnormal_mask], abnormal_indices)
+        aggregate_fault_recall = np.mean(abnormal_preds) * 100.
+    else:
+        aggregate_fault_recall = 0.0
+
     return {
         "accuracy": accuracy,
+        "balanced_accuracy": balanced_acc * 100.,
+        "macro_f1": macro_f1,
+        "per_class_precision": precision,
+        "per_class_recall": recall,
+        "aggregate_fault_recall": aggregate_fault_recall,
         "all_preds": all_preds,
         "all_labels": all_labels,
         "per_class_acc": per_class_acc

@@ -159,7 +159,7 @@ LEARNING_RATE = 1e-3
 WEIGHT_DECAY = 1e-4
 
 # Batch size for training DataLoader
-BATCH_SIZE = 64
+BATCH_SIZE = 32
 
 # Maximum number of training epochs
 MAX_EPOCHS = 100
@@ -171,7 +171,7 @@ EARLY_STOPPING_PATIENCE = 10
 LR_SCHEDULER_T_MAX = MAX_EPOCHS  # period of the cosine cycle
 
 # Number of DataLoader workers for parallel data loading
-NUM_WORKERS = 8
+NUM_WORKERS = 4
 
 
 # =============================================================================

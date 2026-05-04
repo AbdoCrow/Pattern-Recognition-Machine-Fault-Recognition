@@ -41,21 +41,25 @@ class MachineDataset(Dataset):
 
         try:
             import numpy as np
+            from features import apply_augmentation
             
             # 1. INSTANT LOAD: Read the pre-calculated matrix
             data = np.load(file_path)
 
-            # 2. CONVERT TO TENSOR
+            # 2. APPLY AUGMENTATION AT LOAD TIME (training only)
+            # Cached features are saved clean; augmentation is randomized per sample fetch.
+            if self.augment:
+                if data.ndim == 3 and data.shape[0] == 1:
+                    data = apply_augmentation(data[0])[None, :, :]
+                elif data.ndim == 2:
+                    data = apply_augmentation(data)
+
+            # 3. CONVERT TO TENSOR
             tensor = torch.from_numpy(data).float()
 
             # Ensure it has the channel dimension (1, n_mels, time)
             if tensor.dim() == 2:
                 tensor = tensor.unsqueeze(0)
-
-            # 3. APPLY AUGMENTATION (SpecAugment only)
-            if self.augment:
-                # Add lightweight SpecAugment here later if you want
-                pass 
 
             return tensor, label
 
@@ -83,10 +87,7 @@ class InferenceDataset(Dataset):
         )
         self.file_paths = [os.path.join(data_dir, f) for f in self.file_paths]
 
-        print(f"InferenceDataset: Found {len(self.file_paths)} test files")
-        if len(self.file_paths) > 0:
-            print(f"  First file: {self.file_paths[0]}")
-            print(f"  Last file:  {self.file_paths[-1]}")
+        pass
 
     def __len__(self):
         return len(self.file_paths)
@@ -142,7 +143,7 @@ def create_data_loaders(splits):
         num_workers=NUM_WORKERS,
         pin_memory=True,            # Faster CPU to GPU data transfer
         generator=generator,
-        drop_last=True,             # Critical for Osama's BatchNorm layers if the batch number wasn't divided by the data fed
+        drop_last=True,             # Critical for BatchNorm layers if the batch number wasn't divided by the data fed
         persistent_workers=True,    # Keep workers alive between epochs
     )
     

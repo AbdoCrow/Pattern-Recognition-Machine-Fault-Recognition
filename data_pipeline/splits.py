@@ -54,7 +54,7 @@ def create_stratified_splits(data_dir=None):
     file_paths = np.array(file_paths)
     labels = np.array(labels)
 
-    # First split — separate the Test set (15%) from everything else
+    # First split separate the Test set (15%) from everything else
     train_val_files, test_files, train_val_labels, test_labels = train_test_split(
         file_paths, labels,
         test_size=TEST_RATIO,
@@ -62,7 +62,7 @@ def create_stratified_splits(data_dir=None):
         random_state=RANDOM_SEED,
     )
 
-    # Second split — separate Train (70%) and Val (15%) from the remaining 85%
+    # Second split separate Train (70%) and Val (15%) from the remaining 85%
     # We must calculate the relative ratio (15 / 85 = ~0.1764) for the second split
     relative_val_ratio = VAL_RATIO / (TRAIN_RATIO + VAL_RATIO)
     train_files, val_files, train_labels, val_labels = train_test_split(
